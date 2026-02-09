@@ -1,0 +1,15 @@
+{
+  "original": "https://www.codeforces.com/problemset/problem/1620/E",
+  "title": "Scroll Transformations",
+  "tags": [
+    "Arrays and Lists",
+    "Basic Data Structures",
+    "Trees and Tries",
+    "Algorithm Complexity and Big O Notation"
+  ],
+  "model_breaking": true,
+  "time": 4,
+  "space": 128,
+  "new_colab_link": "https://colab.research.google.com/drive/1kTdiG5ZT0IEZeGCWf6PpSpQAU9lTdW3z",
+  "github_link": "https://github.com/MSFT-Codeforces/scroll_transformations"
+}
