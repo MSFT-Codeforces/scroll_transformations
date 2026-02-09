@@ -1,0 +1,212 @@
+**[section_01]**  
+Interpreting operations and outputs precisely
+
+**[atomic_01_01]**  
+The scroll is an initially empty sequence of integers. Over $q$ steps, we apply operations that may append a value or rewrite values globally. The final scroll is the result after applying all $q$ operations in the given order.
+
+**[atomic_01_02]**  
+Type `1 x` appends the integer $x$ to the end of the current scroll. This is the only operation that increases the length, so the final length $n$ equals the number of type `1` operations. The statement guarantees at least one type `1`, so $n \ge 1$.
+
+**[atomic_01_03]**  
+Type `2 x y` rewrites every element currently equal to $x$ into $y$. This is a global value-based rewrite, not an index-based change; positions do not matter for deciding which elements are affected.
+
+**[atomic_01_04]**  
+Type `3 x y` swaps values $x$ and $y$ everywhere simultaneously. “Simultaneously” means that an element that is $x$ becomes $y$ and an element that is $y$ becomes $x$ in the same operation, so a correct interpretation must not accidentally convert both into the same value.
+
+**[atomic_01_05]**  
+After all operations, we must print the final sequence $S$ (space-separated integers) on the first line. The second line must contain the discord score, defined as the inversion count:
+$$
+\#\{(i,j) \mid 1 \le i < j \le n,\ S[i] > S[j]\}.
+$$
+
+**[atomic_01_06]**  
+All values $x, y$ are in the range $[1, 5 \cdot 10^5]$, and $q$ can be as large as $5 \cdot 10^5$. The inversion count can be large (up to about $\frac{n(n-1)}{2}$), so the output integer must support large magnitudes.
+
+---
+
+**[section_02]**  
+Constructing edge cases and validation tests
+
+**[atomic_02_01]**  
+Single append: input with $q = 1$ and operation `1 x`. The output must be exactly the one-element array `[x]` and discord score $0$. This validates formatting and the base case where no rewrites exist.
+
+**[atomic_02_02]**  
+Many duplicates: appends such as `1 2`, `1 2`, `1 2`. Any rewrites should update all duplicates consistently, and the inversion count must remain $0$ because equal pairs do not form inversions.
+
+**[atomic_02_03]**  
+Swap simultaneity check: build a scroll that contains both $x$ and $y$, then apply `3 x y`. The final array must have $x$ and $y$ exchanged. This catches the classic bug where someone implements swap as two sequential replacements.
+
+**[atomic_02_04]**  
+Transmute chaining: operations like `2 1 2`, then `2 2 3`, then `2 3 4` combined with early appends of `1 1`. The final value should reflect the full chain, not just a single-step substitution.
+
+**[atomic_02_05]**  
+Operations on absent values: apply `2 x y` or `3 x y` at times when $x$ (or both $x$ and $y$) do not appear in the current scroll. Such operations should not break the logic; they still must be treated as valid and may matter relative to earlier appends.
+
+**[atomic_02_06]**  
+Descending outcome for large inversion count: create a case that results in a descending final sequence (or close to it). This checks that the discord score computation can handle values near the maximum and that large counts do not overflow fixed-width integers in other languages.
+
+**[atomic_02_07]**  
+Boundary values: include $x$ and $y$ equal to $1$ and $5 \cdot 10^5$. This validates that indexing conventions are consistent and that the implementation does not accidentally allocate too small a structure.
+
+---
+
+**[section_03]**  
+Simulating everything and recomputing the score after each step
+
+**[atomic_03_01]**  
+A maximally naive interpretation is to keep the scroll as a plain list and apply each operation by directly editing that list: append for type `1`, scan-and-replace for type `2`, and scan-and-swap for type `3`.
+
+**[atomic_03_02]**  
+To “stay informed,” this naive approach might also recompute the discord score after every operation by checking all pairs $(i,j)$ with $i<j$. While unnecessary (the problem only asks for the final score), it is an easy mistake when implementing step-by-step simulation.
+
+**[atomic_03_03]**  
+The recomputation step requires a nested loop over the current length $n_t$ of the scroll at time $t$. In the worst case, $n_t$ grows to $\Theta(q)$ and remains large for many operations.
+
+**[atomic_03_04]**  
+This creates a severe bottleneck: even if we ignore the cost of global rewrites, the repeated inversion recomputation alone can sum to roughly
+$$
+\sum_{t=1}^{q} \Theta(n_t^2) = \Theta(q \cdot q^2) = \Theta(q^3)
+$$
+in the worst case.
+
+**[atomic_03_05]**  
+Additionally, type `2` and `3` operations each require scanning the current list to find affected elements, adding another layer of high cost when many rewrites happen after many appends.
+
+**[atomic_03_06]**  
+Time complexity (worst case): $\Theta(q^3)$.  
+Space complexity: $\Theta(n)$ for the scroll.
+
+**[atomic_03_07]**  
+This approach is rejected because it is many orders of magnitude too slow for $q = 5 \cdot 10^5$, even before considering constant factors.
+
+---
+
+**[section_04]**  
+Recomputing the discord score only once after naive simulation
+
+**[atomic_04_01]**  
+The first practical refinement is to stop recomputing the discord score after every operation. Instead, we simulate the operations forward to obtain the final scroll $S$, and only then compute the inversion count once.
+
+**[atomic_04_02]**  
+Forward simulation still means: type `1` appends in $O(1)$, while type `2` and `3` require scanning the entire current scroll to replace or swap matching values. This cost grows with the length of the scroll.
+
+**[atomic_04_03]**  
+After simulation, we compute the discord score using the direct pair check over $S$. That final computation alone costs $\Theta(n^2)$.
+
+**[atomic_04_04]**  
+With $n = \Theta(q)$ (because there can be $\Theta(q)$ append operations), the inversion computation becomes $\Theta(q^2)$, and the repeated global rewrites can also sum to $\Theta(q^2)$.
+
+**[atomic_04_05]**  
+Time complexity (worst case): $\Theta(q^2)$.  
+Space complexity: $\Theta(n)$.
+
+**[atomic_04_06]**  
+Although this is a big improvement over $\Theta(q^3)$, $\Theta(q^2)$ is still far too slow for $q = 5 \cdot 10^5$; it can lead to about $2.5 \cdot 10^{11}$ element-visits in adversarial inputs.
+
+**[atomic_04_07]**  
+This failure indicates we must eliminate “scan the entire scroll per rewrite” behavior, because type `2` and type `3` can otherwise dominate runtime.
+
+---
+
+**[section_05]**  
+Reconstructing the final scroll backwards and counting inversions with buckets
+
+**[atomic_05_01]**  
+To avoid rewriting a huge scroll repeatedly, we change perspective: instead of editing existing elements many times, we determine what each appended element becomes after all later operations.
+
+**[atomic_05_02]**  
+We process operations from the end to the beginning while maintaining a mapping $p$ where $p[v]$ represents the final value of an element that is currently $v$ after applying the already-processed suffix of operations.
+
+**[atomic_05_03]**  
+Backward updates are local to values:  
+- If we see `1 x`, we record $p[x]$ as the final value of that appended element.  
+- If we see `2 x y`, earlier $x$ becomes $y$ before the suffix, so we set $p[x] = p[y]$.  
+- If we see `3 x y`, we swap outcomes, so we apply `swap(p[x], p[y])`.  
+This constructs the final scroll without touching all elements per rewrite.
+
+**[atomic_05_04]**  
+After reconstruction, we still need the inversion count. As an intermediate attempt (before using a Fenwick Tree), we can use bucket counting: split the value range $[1..M]$ into blocks of size $B \approx \sqrt{M}$, maintain per-value frequencies and per-block sums, and query “how many seen values are $\le v$” by summing full blocks plus a partial block.
+
+**[atomic_05_05]**  
+This bucket method reduces inversion counting to $O(\sqrt{M})$ per element, giving total inversion time $\Theta(n \sqrt{M})$. The reconstruction phase remains near-linear, so inversion counting becomes the bottleneck.
+
+**[atomic_05_06]**  
+Time complexity: reconstruction $\Theta(q + M)$, inversion $\Theta(n \sqrt{M})$, total $\Theta(q + M + n \sqrt{M})$. With $n=\Theta(q)$ and $M=\Theta(q)$, this is $\Theta(q^{3/2})$, which is better than $\Theta(q^2)$ but still too slow in practice for $5 \cdot 10^5$.
+
+**[atomic_05_07]**  
+This approach is a useful stepping stone: it confirms that the backward reconstruction removes the expensive global rewrites, but inversion counting still needs a stronger data structure than buckets.
+
+---
+
+**[section_06]**  
+Replacing buckets with a sparse Fenwick Tree and observing the remaining overhead
+
+**[atomic_06_01]**  
+To improve inversion counting, we move from block buckets to a Fenwick Tree conceptually, which supports prefix-sum queries and point updates. This directly matches the need to compute, for each value $v$, how many previously seen values are $\le v$.
+
+**[atomic_06_02]**  
+A cautious first implementation idea is to make the Fenwick Tree sparse to save memory: store only touched indices using an ordered map (or tree-like structure) rather than a full array of length $M$. Each Fenwick update touches $O(\log M)$ indices, and each map operation costs an additional $O(\log M)$.
+
+**[atomic_06_03]**  
+That leads to per-element inversion work of $\Theta(\log^2 M)$, and total inversion time $\Theta(n \log^2 M)$. This is a strict asymptotic improvement over $\Theta(n \sqrt{M})$ and should be much faster for large $M$.
+
+**[atomic_06_04]**  
+However, the sparse/ordered-map Fenwick approach carries substantial overhead: many small ordered-map operations, many allocations, and heavier constants. Even if asymptotics look good, the operational cost can still be high at $n=5 \cdot 10^5$.
+
+**[atomic_06_05]**  
+Time complexity: reconstruction $\Theta(q + M)$, inversion $\Theta(n \log^2 M)$, total $\Theta(q + M + n \log^2 M)$.
+
+**[atomic_06_06]**  
+This suggests one more refinement: because the constraints already bound $M \le 5 \cdot 10^5$, a dense array-based Fenwick Tree is memory-feasible and avoids the extra $\log M$ factor from ordered-map access.
+
+**[atomic_06_07]**  
+So, the remaining performance issue is not the Fenwick idea itself, but the sparse representation chosen for it. Switching to an array representation should reduce inversion counting to $\Theta(n \log M)$.
+
+---
+
+**[section_07]**  
+Implementing the final two-phase solution with array mapping and array Fenwick Tree
+
+**[atomic_07_01]**  
+The final method keeps the backward reconstruction (to avoid global rewrites) and combines it with a dense array-based Fenwick Tree (to count inversions efficiently). This eliminates the remaining unnecessary $\log M$ factor from sparse Fenwick implementations.
+
+**[atomic_07_02]**  
+Phase 1 (backward reconstruction): allocate an array mapping $p$ of size $M+1$ with $p[v]=v$ initially. Scan operations from last to first, updating $p$ as follows:
+- `1 x`: append $p[x]$ into a result list  
+- `2 x y`: set $p[x] = p[y]$  
+- `3 x y`: swap $p[x]$ and $p[y]$  
+Reverse the collected list to obtain the final scroll $S$.
+
+**[atomic_07_03]**  
+This phase is efficient because every operation translates into $O(1)$ updates on the mapping array, and every appended element is finalized with a single lookup. No operation requires scanning the scroll.
+
+**[atomic_07_04]**  
+Phase 2 (discord score): traverse $S$ left-to-right while maintaining a Fenwick Tree `bit` over indices $1..M`. For each value $v$:
+- compute `leq = prefix_sum(v)`  
+- the number of earlier values $> v$ is `seen - leq`  
+- add that to the inversion count, then do `add(v, 1)` and increment `seen`.
+
+**[atomic_07_05]**  
+The inversion count can be as large as $\frac{n(n-1)}{2}$, so the accumulator must store large integers (64-bit in many languages; Python integers handle this naturally).
+
+**[atomic_07_06]**  
+Overall time complexity:  
+- reconstruction: $\Theta(q + M)$  
+- inversion counting: $\Theta(n \log M)$  
+Total: $\Theta(q + M + n \log M)$, which is strictly better than $\Theta(q + M + n \log^2 M)$ from the sparse Fenwick attempt.
+
+**[atomic_07_07]**  
+Overall space complexity: $\Theta(q + M + n)$, coming from storing operations (to scan backward), the mapping array $p$, the final scroll $S$, and the Fenwick array.
+
+**[atomic_07_08]**  
+A compact summary of the final core logic (pseudocode-like) is:
+```text
+backward:
+  if type 1: ans.append(p[x])
+  if type 2: p[x] = p[y]
+  if type 3: swap(p[x], p[y])
+
+forward on final S:
+  inv += seen - bit.sum(v)
+  bit.add(v, 1)
+```

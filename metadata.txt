@@ -1,0 +1,9 @@
+# Metadata
+**Category:** - Coding
+**Topic:** - Competitive Programming
+**Subtopic:** - ["Arrays and Lists", "Basic Data Structures", "Trees and Tries", "Algorithm Complexity and Big O Notation"]
+**Difficulty:** - Hard
+**Languages:** - Python
+**Number of Approaches:** - 5, ($O(q^3)$ -> $O(q^2)$ -> $O(q + n\sqrt{M})$ -> $O(q + n\log^2 M)$ -> $O(q + n\log M)$)
+**Number of Chains:** - 7
+**Model-Breaking:** - True

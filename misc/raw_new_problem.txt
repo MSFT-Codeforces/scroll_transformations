@@ -1,0 +1,165 @@
+## Problem: Array Transformer with Swaps and Inversions
+
+You are given an initially empty array `A`. You must process `q` queries of the following types:
+
+- `1 x` — append integer `x` to the end of `A`.
+- `2 x y` — replace **all** occurrences of value `x` in `A` with value `y`.
+- `3 x y` — swap **all** occurrences of values `x` and `y` in `A` (simultaneously: every `x` becomes `y` and every `y` becomes `x`).
+
+After all queries, output:
+
+1. The final contents of the array.
+2. The number of inversions in the final array, i.e. the number of pairs `(i, j)` such that `1 ≤ i < j ≤ n` and `A[i] > A[j]`, where `n` is the final length of `A`.
+
+### Input Format
+- The first line contains one integer `q` (`1 ≤ q ≤ 5 · 10^5`) — the number of queries.
+- The next `q` lines each contain one query in one of the following forms:
+  - `1 x`
+  - `2 x y`
+  - `3 x y`
+- `1 ≤ x, y ≤ 5 · 10^5`
+- It is guaranteed that there is at least one query of type `1`.
+
+### Output Format
+- Print the final array as space-separated integers on the first line.
+- Print the inversion count of the final array on the second line.
+
+---
+
+## Editorial
+
+A direct simulation is too slow because queries of type `2` and `3` may affect many elements.
+
+### Part 1: Build the final array using reverse processing
+
+Process the queries from the end to the beginning, maintaining an array `p` such that:
+
+- `p[v]` = the value that `v` will become after applying all operations in the suffix already processed.
+
+Initialize `p[v] = v` for all relevant `v`.
+
+Now process queries in reverse order:
+
+- Query `1 x` (append): in the final array this appended value becomes `p[x]`. Append `p[x]` to a list `ans`.
+- Query `2 x y` (replace all `x` with `y`): any earlier `x` will end up as whatever `y` ends up as, so set:
+  - `p[x] = p[y]`
+- Query `3 x y` (swap all `x` and `y`): any earlier `x` will become `y` then follow the suffix mapping, and any earlier `y` will become `x` then follow the suffix mapping. This is exactly:
+  - swap `p[x]` and `p[y]`
+
+At the end, reverse `ans` (because we collected appended elements backwards). This yields the final array.
+
+This part runs in `O(q + M)` where `M ≤ 5 · 10^5`.
+
+### Part 2: Count inversions of the final array
+
+Once the final array is known, count inversions with a Fenwick Tree (Binary Indexed Tree) over the value range.
+
+Scan the final array from left to right. When processing value `v`:
+
+- Let `seen` be the number of processed elements so far.
+- Let `count_leq(v)` be how many of them are `≤ v` (Fenwick prefix sum).
+- Then the number of previous elements `> v` is `seen - count_leq(v)`, which is exactly how many inversions this `v` creates as the second element.
+
+Update the Fenwick Tree by adding `1` to position `v`.
+
+This part runs in `O(n log M)`, where `n` is the number of appended elements.
+
+### Overall Complexity
+- Time: `O(q + n log M)` with `M ≤ 5 · 10^5`
+- Memory: `O(q + M)`
+
+---
+
+## Reference Implementation (Python)
+
+```python
+import sys
+from array import array
+
+
+def solve() -> None:
+    data = sys.stdin.buffer.read()
+    nbytes = len(data)
+    pos = 0
+
+    def next_int() -> int:
+        nonlocal pos
+        while pos < nbytes and data[pos] <= 32:
+            pos += 1
+        num = 0
+        while pos < nbytes and data[pos] > 32:
+            num = num * 10 + (data[pos] - 48)
+            pos += 1
+        return num
+
+    q = next_int()
+
+    typ = array('B')   # stores 1,2,3
+    xs = array('I')
+    ys = array('I')    # 0 for type 1
+
+    maxv = 1
+    for _ in range(q):
+        t = next_int()
+        x = next_int()
+        y = 0
+        if t != 1:
+            y = next_int()
+            if y > maxv:
+                maxv = y
+        if x > maxv:
+            maxv = x
+        typ.append(t)
+        xs.append(x)
+        ys.append(y)
+
+    MAXV = maxv
+
+    # p[v] = final value of v after all processed suffix operations
+    p = array('I', range(MAXV + 1))
+
+    ans = []
+    for i in range(q - 1, -1, -1):
+        t = typ[i]
+        x = xs[i]
+        if t == 1:
+            ans.append(p[x])
+        elif t == 2:
+            y = ys[i]
+            p[x] = p[y]
+        else:  # t == 3
+            y = ys[i]
+            p[x], p[y] = p[y], p[x]
+
+    ans.reverse()
+
+    # Fenwick tree for inversion count
+    bit = array('I', [0]) * (MAXV + 1)
+
+    def bit_add(i: int, delta: int) -> None:
+        while i <= MAXV:
+            bit[i] += delta
+            i += i & -i
+
+    def bit_sum(i: int) -> int:
+        s = 0
+        while i > 0:
+            s += bit[i]
+            i -= i & -i
+        return s
+
+    inv = 0
+    seen = 0
+    for v in ans:
+        leq = bit_sum(v)
+        inv += seen - leq
+        bit_add(v, 1)
+        seen += 1
+
+    sys.stdout.write(" ".join(map(str, ans)) + "\n")
+    sys.stdout.write(str(inv) + "\n")
+
+
+if __name__ == "__main__":
+    solve()
+```

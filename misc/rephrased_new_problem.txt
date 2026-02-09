@@ -1,0 +1,236 @@
+## Problem: Rune-Smith’s Scroll and the Discord Score
+
+A rune-smith keeps a magical scroll that starts out blank. Over time, the smith performs **q** spells on the scroll. Each spell affects the *entire scroll* (not just one position).
+
+There are three kinds of spells:
+
+1. **Inscribe**
+   - `1 x`  
+   Append rune `x` to the **end** of the scroll.
+
+2. **Transmute**
+   - `2 x y`  
+   Every rune currently equal to `x` is rewritten into rune `y`.
+
+3. **Mirror-Swap**
+   - `3 x y`  
+   Every rune `x` becomes `y` and every rune `y` becomes `x` **simultaneously**.
+
+After all spells are finished, you must output:
+
+1. The final sequence of runes on the scroll.
+2. The scroll’s **discord score**: the number of pairs `(i, j)` with `1 ≤ i < j ≤ n` such that `S[i] > S[j]`, where `S` is the final scroll and `n` is its length. (This is exactly the inversion count.)
+
+---
+
+### Input Format
+- First line: integer `q` (`1 ≤ q ≤ 5 · 10^5`)
+- Next `q` lines: one spell in one of these forms:
+  - `1 x`
+  - `2 x y`
+  - `3 x y`
+- `1 ≤ x, y ≤ 5 · 10^5`
+- At least one spell is of type `1`.
+
+### Output Format
+- First line: the final scroll (space-separated integers).
+- Second line: the discord score (an integer).
+
+---
+
+## Sample Test 1
+### Input
+```
+5
+1 3
+1 1
+3 1 3
+2 3 2
+1 3
+```
+
+### Output
+```
+1 2 3
+0
+```
+
+---
+
+## Sample Test 2
+### Input
+```
+6
+1 4
+1 2
+1 4
+2 4 1
+3 1 2
+1 1
+```
+
+### Output
+```
+2 1 2 1
+3
+```
+
+---
+
+# Editorial
+
+A naive simulation is too slow: spells of type `2` and `3` may affect the whole scroll, and `q` is up to `5e5`.
+
+We solve it in two phases:
+
+## Phase 1 — Reconstruct the final scroll by reading spells backwards
+
+Key idea: instead of editing a huge scroll many times, track how **labels** transform.
+
+Process spells from the end back to the beginning, maintaining a mapping:
+
+- `p[v]` = what rune value `v` will become **after all spells in the already-processed suffix**.
+
+Initially, nothing changes, so:
+- `p[v] = v` for all rune values that appear.
+
+Now go backwards through spells:
+
+- Spell `1 x` (inscribe): when this rune was appended, all later spells (in the suffix) will transform it into `p[x]`.  
+  So we record `p[x]` into an answer list.
+
+- Spell `2 x y` (transmute all `x` → `y`): for any earlier rune `x`, once we cross this spell going forward, it becomes `y`, and then the suffix transforms it into `p[y]`.  
+  So set:  
+  `p[x] = p[y]`.
+
+- Spell `3 x y` (mirror-swap): earlier `x` becomes `y` (then `p[y]`), and earlier `y` becomes `x` (then `p[x]`).  
+  Going backwards, that is exactly:  
+  `swap(p[x], p[y])`.
+
+We collect appended runes in reverse order, so finally reverse the collected list to obtain the final scroll.
+
+**Time:** `O(q + M)` where `M ≤ 5e5` is max rune value used.  
+**Memory:** `O(q + M)` to store spells and the mapping.
+
+---
+
+## Phase 2 — Compute the discord score (inversion count)
+
+Once the final array is known, compute inversions using a **Fenwick Tree (BIT)** over rune values.
+
+Scan from left to right:
+- For current value `v`, let `seen` be how many elements already processed.
+- Let `count_leq(v)` be how many seen values are `≤ v` (Fenwick prefix sum).
+- Then the number of previous values `> v` is `seen - count_leq(v)`, which are exactly the inversions contributed by this `v`.
+
+Update Fenwick: add `1` at index `v`.
+
+**Time:** `O(n log M)` where `n` is final scroll length.  
+**Inversions can be up to ~1.25e11**, so store the answer in 64-bit / Python int.
+
+---
+
+## Overall Complexity
+- **Time:** `O(q + n log M)`
+- **Memory:** `O(q + M)`
+- Works comfortably under the constraints.
+
+---
+
+# Reference Implementation (Python 3)
+
+```python
+import sys
+from array import array
+
+
+def solve() -> None:
+    data = sys.stdin.buffer.read()
+    m = len(data)
+    i = 0
+
+    def next_int() -> int:
+        nonlocal i
+        while i < m and data[i] <= 32:
+            i += 1
+        num = 0
+        while i < m and data[i] > 32:
+            num = num * 10 + (data[i] - 48)
+            i += 1
+        return num
+
+    q = next_int()
+
+    # Store spells compactly
+    typ = array('B')  # 1,2,3
+    xs = array('I')
+    ys = array('I')   # 0 for type 1
+
+    maxv = 1
+    for _ in range(q):
+        t = next_int()
+        x = next_int()
+        y = 0
+        if t != 1:
+            y = next_int()
+            if y > maxv:
+                maxv = y
+        if x > maxv:
+            maxv = x
+        typ.append(t)
+        xs.append(x)
+        ys.append(y)
+
+    MAXV = maxv
+
+    # p[v] = value of v after applying all spells in the processed suffix
+    p = array('I', range(MAXV + 1))
+
+    # Build final scroll backwards
+    scroll_rev = []
+    for k in range(q - 1, -1, -1):
+        t = typ[k]
+        x = xs[k]
+        if t == 1:
+            scroll_rev.append(p[x])
+        elif t == 2:
+            y = ys[k]
+            p[x] = p[y]
+        else:  # t == 3
+            y = ys[k]
+            p[x], p[y] = p[y], p[x]
+
+    scroll_rev.reverse()
+    scroll = scroll_rev
+
+    # Fenwick Tree for inversion count
+    bit = array('I', [0]) * (MAXV + 1)
+
+    def bit_add(pos: int, delta: int) -> None:
+        while pos <= MAXV:
+            bit[pos] += delta
+            pos += pos & -pos
+
+    def bit_sum(pos: int) -> int:
+        s = 0
+        while pos > 0:
+            s += bit[pos]
+            pos -= pos & -pos
+        return s
+
+    inv = 0
+    seen = 0
+    for v in scroll:
+        leq = bit_sum(v)
+        inv += seen - leq
+        bit_add(v, 1)
+        seen += 1
+
+    sys.stdout.write(" ".join(map(str, scroll)) + "\n")
+    sys.stdout.write(str(inv) + "\n")
+
+
+if __name__ == "__main__":
+    solve()
+```
+

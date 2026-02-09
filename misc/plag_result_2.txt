@@ -1,0 +1,8 @@
+- **GeeksforGeeks — “Replace all occurrences of X by Y or add element K in Array for Q queries”**  
+  `https://www.geeksforgeeks.org/dsa/replace-all-occurrences-of-x-by-y-or-add-element-k-in-array-for-q-queries/` ([geeksforgeeks.org](https://www.geeksforgeeks.org/dsa/replace-all-occurrences-of-x-by-y-or-add-element-k-in-array-for-q-queries/?utm_source=openai))
+
+- **GeeksforGeeks — “Swap all occurrences of two characters to get lexicographically smallest string”** (matches the “swap x and y simultaneously” operation idea)  
+  `https://www.geeksforgeeks.org/swap-all-occurrences-of-two-characters-to-get-lexicographically-smallest-string/` ([geeksforgeeks.org](https://www.geeksforgeeks.org/swap-all-occurrences-of-two-characters-to-get-lexicographically-smallest-string/?utm_source=openai))
+
+- **GeeksforGeeks — “Replace all occurrences of X by Y for Q queries in given Array”**  
+  `https://www.geeksforgeeks.org/dsa/replace-all-occurrences-of-x-by-y-for-q-queries-in-given-array/` ([geeksforgeeks.org](https://www.geeksforgeeks.org/dsa/replace-all-occurrences-of-x-by-y-for-q-queries-in-given-array/?utm_source=openai))
